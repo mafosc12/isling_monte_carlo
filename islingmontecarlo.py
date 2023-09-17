@@ -1,0 +1,205 @@
+import numpy as np
+rng = np.random.default_rng()  
+import matplotlib.pylab as plt
+
+def init_lattice(width,type):
+    '''Produce an initial lattice with spins. Type 1 gives all spins 1, type 0 gives a random spins, type -1 gives all spins -1. Captures invalid types.'''
+    if type==0:
+        lattice = 2*rng.random((width,width)) - 1
+    elif type==1:
+        lattice = np.ones((width,width))
+    elif type==-1:
+        lattice = -1 * np.ones((width,width))
+    else:
+        print("error")
+    return lattice
+    # TO DO
+
+def neighbouring_sites(i,j,width):
+    '''Return the coordinates of the 4 sites adjacent to [i,j] on an width*width lattice. Takes into account periodic boundary conditions.'''
+    neighbours = []
+    for x,y in [(i+1,j), (i-1,j), (i,j+1), (i,j-1)]:
+        x = x % width
+        y = y % width
+        neighbours.append((x,y))
+    return neighbours
+
+    # TO DO
+
+def neighbouring_spins_sum(i,j,lattice,width):
+    '''Sums the spins of all neighbours of the spin at [i,j].'''
+    spinsum = 0
+    neighs = neighbouring_sites(i,j,width)
+    for site in neighs:
+        spinsum += lattice[site]
+    return spinsum
+
+def compute_magnetisation(lattice):
+    '''Computes the magnetisation of the lattice.'''
+    relmag = np.sum(lattice)/lattice.shape[0]**2
+    return relmag
+    # TO DO (np.sum() may be useful)
+
+def plot_lattice(lattice,ax,title):
+    '''Plot the lattice configuration.'''
+    ax.matshow(lattice, vmin=-1, vmax=1, cmap=plt.cm.binary)
+    ax.title.set_text(title)
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+    ax.set_yticks([])
+    ax.set_xticks([])
+
+def compute_betaDeltaE(i,j,lattice,width,betaJ,betaMuH):
+    '''Computes the energy difference between the old and new state if spin [i,j] would be flipped.'''
+    spinsum = neighbouring_spins_sum(i,j,lattice,width)
+    E = 2 * (betaJ * lattice[i,j] * spinsum + betaMuH * lattice[i,j])
+    return E
+
+    # TO DO
+
+def attempt_spin_flip(lattice,width,betaJ,betaMuH):
+    '''Applies the Metropolis-Hastings algorithm to try and flip a spin.'''
+    i, j = np.random.randint(0, width,size=2)
+    E = compute_betaDeltaE(i,j,lattice, width, betaJ, betaMuH)
+    if rng.random() < np.exp(-E) or E <= 0:
+        lattice[i,j] = -lattice[i,j]
+    # TO DO
+
+def evolve_and_plot(lattice,betaJ,betaMuH,plot_times):
+    '''Evolves the lattice using the Metropolis-Hastings algorithm and plots the lattice at different times.'''
+    # TO DO
+    width = lattice.shape[0]
+    fig, ax = plt.subplots(1,len(plot_times),figsize=(12,4))
+    for t in range(plot_times[-1]+1):
+        # TO DO
+        attempt_spin_flip(lattice,width,betaJ,betaMuH)
+        if t in plot_times:
+            plot_lattice(lattice,ax[plot_times.index(t)],"t = {}".format(t))
+    plt.show()
+
+def evolve_and_compute_M(lattice,betaJ,betaMuH,avg_times):
+    magnetisations = []
+    width = lattice.shape[0]
+    
+    for t in range(avg_times[-1]+1):
+        attempt_spin_flip(lattice, width, betaJ, betaMuH)
+        if t in avg_times:
+            magnetisations.append(compute_magnetisation(lattice))
+            
+    return np.mean(magnetisations)
+    '''Evolves the lattice using the Metropolis-Hastings algorithm and returns the average magnetisation computed using different time steps.'''
+
+
+# Testing the Metropolis-Hastings algorithm
+plot_times = [0,10,100,1000,10000,100000]
+plot_times = [0,10,100,1000,10000,100000]
+
+lattice1 = init_lattice(10,1)
+lattice2 = init_lattice(10,0)
+evolve_and_plot(lattice1,0,0, plot_times)
+evolve_and_plot(lattice2,0,0,plot_times)
+# TO DO
+
+
+plot_times = [0,10,100,1000,10000,100000]
+lattice1 = init_lattice(20,1)
+lattice2 = init_lattice(20,0)
+evolve_and_plot(lattice1,0,-0, plot_times)
+evolve_and_plot(lattice2,0,-0,plot_times)
+
+
+betaMuHs_analytical = np.linspace(0,1,100) # betaMuH values to plot
+M_analytical = np.tanh(betaMuHs_analytical)
+
+avg_times = [0,10,100,1000,10000,100000] 
+avM_monte = []
+for i in betaMuHs_analytical:
+    avM_monte.append(evolve_and_compute_M(lattice1,0,i,avg_times))
+
+
+plt.plot(betaMuHs_analytical, M_analytical, label = 'analytic')
+plt.plot(betaMuHs_analytical, avM_monte, label = 'monte')
+ # Pick some suitable time points at which to sample your magnetisation. These values should be averaged to get a stable mean
+
+# TO DO: Simulate the system at different magnetic field strengths
+
+plt.xlabel ('Magnetic field strength betaMuH')
+plt.ylabel ('Magnetisation M')
+plt.legend(loc='upper left')
+plt.show()
+
+betaMuHs_analytic = np.linspace(0,1,100) 
+m_analytic= np.tanh(betaMuHs_analytic)
+
+avg_times = [0,10,100,1000,10000,100000] 
+m_monte = []
+for i in betaMuHs_analytic:
+    m_monte.append(evolve_and_compute_M(lattice1,0,i,avg_times))
+
+
+plt.plot(betaMuHs_analytic, m_analytic, label = 'analytic')
+plt.plot(betaMuHs_analytic, m_monte, label = 'monte carlo')
+
+plt.xlabel ('betaMuH')
+plt.ylabel ('M')
+plt.legend(loc='upper left')
+plt.show()
+# TO DO
+
+def spin_flip_wolff(lattice,width,betaJ,betaMuH):
+    '''Applies the Wolff algorithm to try and flip a spin.'''
+    i,j = rng.integers(0,width,2) # Select a random seed
+    # TO DO
+    unvisited = # TO DO
+    while (len(unvisited)>0):   # while unvisited sites remain
+        i,j = unvisited.pop(0)  # take one and remove from the unvisited list
+        for x,y in neighbouring_sites(i,j,width):
+            # TO DO
+    return cluster_size
+
+def evolve_and_plot_wolff(lattice,betaJ,betaMuH,plot_times):
+    '''Evolves the lattice using the Wolff algorithm and plots the lattice at different times.'''
+    # TO DO
+    fig, ax = plt.subplots(1,len(plot_times),figsize=(12,4))
+    for t in range(plot_times[-1]+1):
+        # TO DO
+        if t in plot_times:
+            plot_lattice(lattice,ax[plot_times.index(t)],"t = {}".format(t))
+    plt.show()
+
+def evolve_and_computeChi(lattice,betaJ,betaMuH,avg_times):
+    '''Evolves the lattice using the Metropolis-Hastings algorithm and computes the average magnetisation using different time steps.'''
+    m = []
+    for t in range(avg_times[-1]+1):
+        attempt_spin_flip(lattice,width,betaJ,betaMuH)
+        if t in avg_times:
+            susceptibility = (1/width**2) * np.var(m)
+    return susceptibility
+
+# TO DO
+# Simulate the system at different coupling strengths (relative to the critical temperature)
+avg_times = [0,10,100,1000,10000]
+width = 10
+lattice = init_lattice(width,0)
+susceptibility = []
+betaJs = [i*np.log(1+np.sqrt(2))/2 for i in np.linspace(0,1,100)]
+for i in betaJs:
+    susceptibility.append(evolve_and_computeChi(lattice, i, 0, avg_times))
+plt.plot(betaJs, susceptibility)
+plt.xlabel ('Coupling strength betaJ')
+plt.ylabel ('Magnetic susceptibility Chi')
+plt.show()
+
+# Simulate the system at different coupling strengths (relative to the critical temperature)
+avg_times = [0,10,100,1000,10000]
+width = 100
+lattice = init_lattice(width,0)
+susceptibility = []
+betaJs = [i*np.log(1+np.sqrt(2))/2 for i in np.linspace(0,1,100)]
+
+for i in betaJs:
+    susceptibility.append(evolve_and_computeChi(lattice, i, 0, avg_times))
+plt.plot(betaJs, susceptibility)
+plt.xlabel ('Coupling strength betaJ')
+plt.ylabel ('Magnetic susceptibility Chi')
+plt.show()
